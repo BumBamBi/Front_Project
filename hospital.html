@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
+    <!-- <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script> -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- main js -->
+    <script src ="./js/main.js"></script>
+    <!-- 카카오맵 API -->
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=febc03d36b10e537ef1f77ee7d8fb477"></script>
+    <script>
+
+        // 지도 띄우기 ----------------------------------------------------------------------------------
+        var map;
+        $(function(){
+            var container = document.getElementById('map'); //지도를 담을 영역의 DOM 레퍼런스
+            var options = { //지도를 생성할 때 필요한 기본 옵션
+                center: new kakao.maps.LatLng(33.450701, 126.570667), //지도의 중심좌표.
+                level: 3 //지도의 레벨(확대, 축소 정도)
+            };
+
+            map = new kakao.maps.Map(container, options); //지도 생성 및 객체 리턴
+        
+            // 마커가 표시될 위치입니다 
+            var markerPosition  = new kakao.maps.LatLng(33.450701, 126.570667); 
+
+            // 마커를 생성합니다
+            var marker = new kakao.maps.Marker({
+                position: markerPosition,
+                title : "카카오 제주본사"
+            });
+
+            // 마커가 지도 위에 표시되도록 설정합니다
+            marker.setMap(map);
+
+            // 아래 코드는 지도 위의 마커를 제거하는 코드입니다
+            // marker.setMap(null);
+
+            // HTML5의 geolocation으로 사용할 수 있는지 확인합니다 
+            // 지원하는 브라우저인지 확인
+            if (navigator.geolocation) {
+                
+                // GeoLocation을 이용해서 접속 위치를 얻어옵니다
+                // GeoLocation은 라우터의 주소가 찍힘(모바일은 정확하게 나옴)
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    
+                    var lat = position.coords.latitude, // 위도
+                        lon = position.coords.longitude; // 경도
+                    
+                    var locPosition = new kakao.maps.LatLng(lat, lon), // 마커가 표시될 위치를 geolocation으로 얻어온 좌표로 생성합니다
+                        message = '<div style="padding:5px;">카카오 본사<br><a href="https://map.kakao.com/link/map/카카오 본사,33.450701,126.570667" style="color:blue" target="_blank">큰지도보기</a> <a href="https://map.kakao.com/link/to/카카오 본사,33.450701,126.570667" style="color:blue" target="_blank">길찾기</a></div>'; // 인포윈도우에 표시될 내용입니다
+                    
+                    // 마커와 인포윈도우를 표시합니다
+                    displayMarker(locPosition, message);
+                        
+                });
+                
+            }
+            // HTML5의 GeoLocation을 사용할 수 없을때 마커 표시 위치와 인포윈도우 내용을 설정합니다
+            else { 
+                var locPosition = new kakao.maps.LatLng(33.450701, 126.570667),    
+                    message = 'geolocation을 사용할수 없어요..'
+                    
+                displayMarker(locPosition, message);
+            }
+
+            // 지도에 마커와 인포윈도우를 표시하는 함수입니다
+            function displayMarker(locPosition, message) {
+
+                // 마커를 생성합니다
+                var marker = new kakao.maps.Marker({  
+                    map: map, 
+                    position: locPosition
+                }); 
+                
+                var iwContent = message, // 인포윈도우에 표시할 내용
+                    iwRemoveable = true;
+
+                // 인포윈도우를 생성합니다
+                // 지도 위에 말풍선처럼 뜨는 infoWindow 설정
+                var infowindow = new kakao.maps.InfoWindow({
+                    content : iwContent,
+                    removable : iwRemoveable
+                });
+                
+                // 인포윈도우를 마커위에 표시합니다 
+                infowindow.open(map, marker);
+                
+                // 지도 중심좌표를 접속위치로 변경합니다
+                map.setCenter(locPosition);      
+            }
+        });
+        // ----------------------------------------------------------------------------------------------
+
+        $(document).on("click", "#btn-list", function(){
+            let requestData = {
+                serviceKey : "7Yz2YRiI/wl6V71dR6if4ItuTCSr9FeUC57xr8eTddd1zHtYOJrRScvmcchwweRcdwrz9FR3Jqd6rS/okntD5A==",
+                pageNo : 1,
+                numOfRows : 30,
+            } ;
+
+            $.ajax({
+                url:"http://apis.data.go.kr/B551182/rprtHospService/getRprtHospService",
+                type:"GET",
+                data:requestData,
+                dataType:"xml",
+                success:function(response){
+                    console.log(response);
+                    // 위치를 마커로 표시하는 작업
+                    makeMarker(response);
+                    // 데이터를 잘 받아왔으면, 이를 List로 만들어서 붙이는 작업
+                    makeList(response);
+                }
+            });
+
+            function makeMarker(data){
+                // 마커를 표시할 위치와 title 객체 배열입니다 
+                // title: '카카오', 
+                // latlng: new kakao.maps.LatLng(33.450705, 126.570677)
+                var positions = [];
+                $(data).find("item").each(function(){
+                    positions.push({
+                        title : `${$(this).find("yadmNm").text()}`,
+                        content : `<div class="info">기관명 : ${$(this).find("yadmNm").text()}</div>`,
+                        latlng : new kakao.maps.LatLng(
+                            `${$(this).find("YPosWgs84").text()}`,
+                            `${$(this).find("XPosWgs84").text()}`
+                            )
+                    });
+                });
+
+
+                // 마커 이미지의 이미지 주소입니다
+                var imageSrc = "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png"; 
+                    
+                for (var i = 0; i < positions.length; i ++) {
+                    
+                    // 마커 이미지의 이미지 크기 입니다
+                    var imageSize = new kakao.maps.Size(24, 35); 
+                    
+                    // 마커 이미지를 생성합니다    
+                    var markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize); 
+                    
+                    // 마커를 생성합니다
+                    var marker = new kakao.maps.Marker({
+                        map: map, // 마커를 표시할 지도
+                        position: positions[i].latlng, // 마커를 표시할 위치
+                        title : positions[i].title, // 마커의 타이틀, 마커에 마우스를 올리면 타이틀이 표시됩니다
+                        image : markerImage // 마커 이미지 
+                    });
+
+                    // 인포윈도우를 생성합니다
+                    // 지도 위에 말풍선처럼 뜨는 infoWindow 설정
+                    var infowindow = new kakao.maps.InfoWindow({
+                        content : positions[i].content,
+                    });
+
+
+                    // 마커에 mouseover 이벤트와 mouseout 이벤트를 등록합니다
+                    // 이벤트 리스너로는 클로저를 만들어 등록합니다 
+                    // for문에서 클로저를 만들어 주지 않으면 마지막 마커에만 이벤트가 등록됩니다(덮어 씌워지므로)
+                    // 각각의 이벤트를 모든 마커에 적용하기 위함
+                    kakao.maps.event.addListener(marker, 'mouseover', makeOverListener(map, marker, infowindow));
+                    kakao.maps.event.addListener(marker, 'mouseout', makeOutListener(infowindow));
+                
+                    // 클릭 이벤트
+                    kakao.maps.event.addListener(marker, 'click', makeClickListener(map, marker, infowindow));
+                
+                    var moveLocation = new kakao.maps.LatLng(positions[0].latlng.Ma, positions[0].latlng.La);
+                    map.setLevel(6);
+                    map.setCenter(moveLocation);
+                }
+            }
+
+            // 인포윈도우를 표시하는 클로저를 만드는 함수입니다 
+            function makeOverListener(map, marker, infowindow) {
+                return function() {
+                    infowindow.open(map, marker);
+                };
+            }
+
+            // 인포윈도우를 닫는 클로저를 만드는 함수입니다 
+            function makeOutListener(infowindow) {
+                return function() {
+                    infowindow.close();
+                };
+            }
+
+            // 마커를 클릭한 경우에 수행할 함수입니다 
+            function makeClickListener(map, marker, infowindow) {
+                return function() {
+                    let pos = marker.getPosition();
+                    map.setLevel(5);
+                    map.panTo(marker);
+                };
+            }
+
+            function makeList(data){
+                let hospitalList = "";
+                // item들의 집합이라, item만 찾으면 배열이 됨
+                // 이를 each로 돌리면서 조회
+                $(data).find("item").each(function(){
+                    hospitalList += `
+                    <tr>
+                        <td>${$(this).find("tadmNm").text()}</td>
+                        <td>${$(this).find("telno").text()}</td>
+                        <td>${$(this).find("addr").text()}</td>
+                        <td>${$(this).find("pcrPsblYn").text()}</td>
+                        <td>${$(this).find("YPosWgs84").text()}</td>
+                        <td>${$(this).find("XPosWgs84").text()}</td>
+                    </tr>`;
+                });
+                $("#hospitallist").empty().append(hospitalList);
+            }
+        
+        })
+    </script>
+
+</head>
+<body>
+    <!-- 네비바-->
+    
+    <!-- 상단 Header content start -->
+    <nav class="navbar navbar-expand-sm bg-light navbar-dark fixed-top shadow">
+        <div class="container">
+          <!-- 네비바 로고 -->
+          <a class="navbar-brand" href="./index.html">
+            <img src="./img/home.png" alt="Logo" />
+          </a>
+          <!-- 네비바 링크 -->
+          <!-- Toggler/collapsibe Button -->
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-toggle="collapse"
+            data-target="#collapsibleNavbar"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+  
+          <!-- Navbar links -->
+          <div class="collapse navbar-collapse" id="collapsibleNavbar">
+            <ul class="navbar-nav">
+              <li class="nav-item">
+                <a class="nav-link text-dark" href="./index.html">공지사항</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-dark" href="./apt.html">아파트매매정보</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-dark" href="./hospital.html">의료정보</a>
+              </li>
+            </ul>
+          </div>
+          <div class="collapse navbar-collapse justify-content-end" id="collapsibleNavbar">
+            <ul class="navbar-nav">
+              <li class="nav-item">
+                <!-- 모달 창을 띄우기 -->
+                <!-- 여기선 loginModal을 띄우기로 함-->
+                <a
+                  id="login"
+                  class="nav-link text-dark"
+                  href="#"
+                  data-toggle="modal"
+                  data-target="#loginModal"
+                  >로그인/가입</a
+                >
+                <a
+                  id="logout"
+                  class="nav-link text-dark"
+                  href="./index.html"
+                  style="display: none"
+                  >로그아웃</a
+                >
+              </li>
+              <li>
+                <a
+                  class="nav-link text-dark"
+                  href="#"
+                  data-toggle="modal"
+                  data-target="#accountInfoModal"
+                  id="accountInfo-btn"
+                  style="display: none"
+                  >회원정보</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+      <!-- 상단 Header content end -->
+    
+    <!-- 중앙 컨텐트 시작 -->
+    <div class = "container">
+        <!-- 네비바 공백을 위한 여백 -->
+        <!-- 네비바가 fixed top 을하면서 아래 코드가 필요해짐 -->
+        <div style="height: 180px"></div>
+        <!-- 한줄은 총 12개의 container -->
+        <!-- 한줄에 한번에 표현하기 위해선 div로 감싸줘야함-->
+        <div class="row">
+            <div class="col-sm-3">
+                <div>
+                    <!-- img-thumbnail : 창 크기가 변해도 크기에 맞춰서 변경됨 -->
+                    <img src="./img/profile.png" class="rounded img-thumbnail" alt="profile">
+                </div>
+                <!-- m: 마진, t: top, p:패딩-->
+                <div class="mt-2">
+                    <!-- btn-block : 좌우 꽉차게 -->
+                    <button type="button" class="btn btn-outline-primary btn-block">투표 만들기</button>
+                </div>
+                <div class="border border-dark mt-2">
+                    <div class="text-center font-weight-bold">진행중인 투표가 없습니다.</div>
+                </div>
+            </div>
+            <div class="col-sm-9">
+                <div class="alert alert-success">
+                    <strong>건강보험 심사평가원</strong>호흡기 진료 지정 의료기관 정보서비스
+                </div>
+                <div class="row justify-content-end">
+                    <button type="button" id="btn-list" class="btn btn-outline-danger">의료기관 검색</button>
+                </div>
+                <div id="map" style="width:100%; height:500px;"></div>
+                <div class="mt-3">
+                    <table class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th>요양기관명</th>
+                            <th>전화번호</th>
+                            <th>주소</th>
+                            <th>PCR검사여부</th>
+                            <th>위도</th>
+                            <th>경도</th>
+                          </tr>
+                        </thead>
+                        <tbody id="hospitallist"></tbody>
+                      </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 중앙 컨텐트 시작 -->
+    <!-- 하단 Footer  시작 -->
+    <div class="container">
+        <ul class="nav justify-content-end">
+            <li class="nav-item">
+                <a class="nav-link text-dark" href="#">채용정보</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-dark" href="#">오시는 길</a>
+            </li>
+        </ul>
+    </div>
+
+
+    <!-- The Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+            <h4 class="modal-title">로그인</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        
+        <!-- Modal body -->
+        <div class="modal-body">
+          <!-- form -->
+          <form>
+            <div class="form-group">
+              <label for="email">Email address:</label>
+              <input type="email" class="form-control" placeholder="Enter email" id="email">
+            </div>
+            <div class="form-group">
+              <label for="pwd">Password:</label>
+              <input type="password" class="form-control" placeholder="Enter password" id="pwd">
+            </div>
+            <div class="form-group form-check">
+              <label class="form-check-label">
+                <input class="form-check-input" type="checkbox"> Remember me
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary">로그인</button>
+            <button type="submit" class="btn btn-success">회원가입</button>
+          </form>
+        </div>
+        
+        <!-- Modal footer -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- The Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title">로그인</h4>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <!-- Modal body -->
+        <div class="modal-body">
+          <!-- form -->
+          <form>
+            <div class="form-group">
+              <label for="email">Email address:</label>
+              <input type="email" class="form-control" placeholder="Enter email" id="email" />
+            </div>
+            <div class="form-group">
+              <label for="pwd">Password:</label>
+              <input type="password" class="form-control" placeholder="Enter password" id="pwd" />
+            </div>
+            <div class="form-group form-check">
+              <label class="form-check-label">
+                <input class="form-check-input" type="checkbox" /> Remember me
+              </label>
+            </div>
+            <button id="btn-login" type="submit" class="btn btn-primary">로그인</button>
+            <button
+              type="button"
+              class="btn btn-success"
+              onclick="location.href='signUp_bootstrap.html'"
+            >
+              회원가입
+            </button>
+          </form>
+        </div>
+
+        <!-- Modal footer -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- The Modal -->
+  <div class="modal" id="accountInfoModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title">회원 정보 확인</h4>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <!-- Modal body -->
+        <div class="modal-body">
+          <!-- form -->
+          <form>
+            <div class="form-group">
+              <label for="mod-email">이메일</label>
+              <input type="email" class="form-control" id="mod-email" readonly value="" />
+            </div>
+            <div class="form-group">
+              <label for="mod-pwd">패스워드</label>
+              <input type="password" class="form-control" id="mod-pwd" readonly value="" />
+            </div>
+            <button type="submit" class="btn btn-primary" id="save-btn" style="display: none">저장</button>
+            <button type="button" class="btn btn-success" id="update-btn">PW 수정</button>
+            <button type="button" class="btn btn-warning" id="signOut-btn">회원 탈퇴</button>
+          </form>
+        </div>
+
+        <!-- Modal footer -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
